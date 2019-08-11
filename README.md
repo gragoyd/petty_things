@@ -1,5 +1,3 @@
-# C_Cpp
-Code of C/C++
-Learning how to use Github
+Up to now contain code of # C/C++ and # python.
 
-this is sth. change...
+Every subelement is an independent petty thing.
