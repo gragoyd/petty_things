@@ -1,0 +1,279 @@
+#include "head.h"
+#include <time.h>
+#define WINDOW_WIDTH	640	//窗体宽度
+#define WINDOW_HEIGHT	480	//窗体高度
+SECTION *t = NULL;			//for循环及新增蛇身节点临时专用指针  *_*
+FOOD food;
+long int sleep_time = 100;	//移动延迟，取值为10~100，每次调节30ms
+
+void GameInit() {
+	initgraph(WINDOW_WIDTH, WINDOW_HEIGHT);
+	cleardevice();
+	settextstyle(30, 0, "楷体");
+	outtextxy(100, 0, "方向键控制，可穿墙循环");
+	outtextxy(100, 40, "空格暂停/开始");
+	outtextxy(100, 80, "ESC退出");
+	outtextxy(100, 120, "TAB切换自动或手控");
+	outtextxy(100, 160, "M提速，N降速，共四档变速");
+	outtextxy(100, 200, "自动模式可穿过自身，手控模式不可");
+	outtextxy(100, 240, "蛇身达100节时变色");
+	outtextxy(100, 280, "手控模式游戏结束会有得分显示");
+	outtextxy(100, 320, "PS：小蛇偶尔会皮一下，嘻嘻");
+	outtextxy(100, 360, "按任意键开始");
+	settextstyle(50, 0, "华文行楷");
+	outtextxy(WINDOW_WIDTH / 2 - 150, WINDOW_HEIGHT - 50, "东东制作  *_*");
+	setbkcolor(RGB(50, 100, 255));
+	srand((unsigned int)time(NULL));
+	food.x = rand() % (WINDOW_WIDTH / 10) * 10;
+	food.y = rand() % (WINDOW_HEIGHT / 10) * 10;
+	
+	_getch();
+}
+
+SNAKE::SNAKE() {
+	head = new SECTION;
+	head->front = NULL;
+	head->next = new SECTION;
+	head->x = head->y = 0;
+	tail = head->next;
+	tail->x = tail->y = 0;
+	tail->front = head;
+	tail->next = NULL;
+	DIRE = RIGHT;
+	valid_num = 2;
+}
+
+SNAKE::~SNAKE() {
+	for (t = head->next; t != tail; t = t->next) {
+		delete head;
+		head = t;
+	}
+	delete head;
+	delete tail;
+}
+
+void SNAKE::AddSection() {
+	tail->next = new SECTION;
+	t = tail;
+	tail = tail->next;
+	tail->front = t;
+	tail->next = NULL;
+	t->x = tail->x;
+	t->y = tail->y;
+	++valid_num;
+}
+
+void SNAKE::Food() {
+	if (head->x == food.x && head->y == food.y) {
+		food.x = rand() % (WINDOW_WIDTH / 10) * 10;
+		food.y = rand() % (WINDOW_HEIGHT / 10) * 10;
+		if (valid_num < 1000)
+			AddSection();
+	}
+}
+
+void SNAKE::Move() {
+	for (t = tail; t != head; t = t->front) {
+		t->x = t->front->x;
+		t->y = t->front->y;
+	}
+	switch (DIRE) {
+	case UP:
+		head->y -= 10; break;
+	case DOWN:
+		head->y += 10; break;
+	case LEFT:
+		head->x -= 10; break;
+	case RIGHT:
+		head->x += 10; break;
+	}
+}
+
+void SNAKE::Show() {
+	cleardevice();
+	if (valid_num < 100) {
+		setlinecolor(RGB(32, 96, 79));
+		setfillcolor(RGB(32, 96, 79));
+	}
+	else {
+		setlinecolor(RGB(255, 255, 50));
+		setfillcolor(RGB(255, 255, 50));
+	}
+	for (t = head->next; t; t = t->next)
+		fillrectangle(t->x, t->y, t->x + 10, t->y + 10);
+	setfillcolor(BLACK);
+	fillroundrect(head->x, head->y, head->x + 10, head->y + 10, 5, 5);
+	setfillcolor(RED);
+	fillroundrect(food.x, food.y, food.x + 10, food.y + 10, 10, 10);
+}
+
+void SNAKE::Control() {
+	switch (_getch()) {
+	case UP:
+		if (DIRE != DOWN)
+			DIRE = UP;
+		break;
+	case DOWN:
+		if (DIRE != UP)
+			DIRE = DOWN;
+		break;
+	case LEFT:
+		if (DIRE != RIGHT)
+			DIRE = LEFT;
+		break;
+	case RIGHT:
+		if (DIRE != LEFT)
+			DIRE = RIGHT;
+		break;
+	case SPACE:					//空格暂停/开始
+		_getch();
+		_getch();
+		break;
+	case TAB:					//切换自动或手控
+		flag_auto = !flag_auto;
+		flag_cross = !flag_cross;
+		break;
+	case ESC:					//退出
+		closegraph();
+		exit(0);
+		break;
+	case M:						//加速
+		if (sleep_time > 10)
+			sleep_time -= 30; 
+		break;
+	case N:						//减速
+		if (sleep_time < 100)
+			sleep_time += 30; 
+		break;
+	}
+}
+
+void SNAKE::Recycle() {
+	if (head->x < 0)
+		head->x = WINDOW_WIDTH - 10;
+	else if (head->x >= WINDOW_WIDTH)
+		head->x = 0;
+	if (head->y < 0)
+		head->y = WINDOW_HEIGHT - 10;
+	else if (head->y >= WINDOW_HEIGHT)
+		head->y = 0;
+}
+
+bool SNAKE::HitSelf() {
+	bool restart = false;
+	for (t = head->next; t; t = t->next)
+		if (t->x == head->x && t->y == head->y) {
+			setbkcolor(RGB(100, 50, 255));
+			cleardevice();
+			settextstyle(50, 0, "黑体");
+			outtextxy(WINDOW_WIDTH / 2 - 100, WINDOW_HEIGHT / 3, "最终得分");
+			settextstyle(100, 0, "黑体");
+			switch (sleep_time) {
+			case 10:valid_num *= 4; break;
+			case 40:valid_num *= 3; break;
+			case 70:valid_num *= 2; break;
+			}
+			char scores[5];
+			int d;
+			if (valid_num < 10) {
+				scores[0] = valid_num + '0';
+				scores[1] = '\0';
+				d = 25;
+			}
+			else if (valid_num < 100) {
+				scores[0] = valid_num / 10 + '0';
+				scores[1] = valid_num % 10 + '0';
+				scores[2] = '\0';
+				d = 50;
+			}
+			else if (valid_num < 1000) {
+				scores[0] = valid_num / 100 + '0';
+				scores[1] = valid_num % 100 / 10 + '0';
+				scores[2] = valid_num % 10 + '0';
+				scores[3] = '\0';
+				d = 75;
+			}
+			else if (valid_num < 5000) {
+				scores[0] = valid_num / 1000 + '0';
+				scores[1] = valid_num % 1000 / 100 + '0';
+				scores[2] = valid_num % 100 / 10 + '0';
+				scores[3] = valid_num % 10 + '0';
+				scores[4] = '\0';
+				d = 100;
+			}
+			else {
+				free(scores);
+				char scores[] = "恭喜得分爆表 *_*";
+				d = 200;
+			}
+			outtextxy(WINDOW_WIDTH / 2 - d, WINDOW_HEIGHT / 3 + 50, scores);
+			settextstyle(20, 0, "黑体");
+			outtextxy(WINDOW_WIDTH / 2 - 130, WINDOW_HEIGHT - 100, "ESC退出，其他任意键重新开始");
+
+			if (_getch() == ESC)
+				exit(0);
+			else
+				restart = true;
+		}
+	return restart;
+}
+
+void SNAKE::Auto() {
+	switch (DIRE) {
+	case LEFT:
+		if (head->x <= food.x)
+			TurnUpOrDown();
+		break;
+	case RIGHT:
+		if (head->x >= food.x)
+			TurnUpOrDown();
+		break;
+	case UP:
+		if (head->y <= food.y)
+			TurnLeftOrRight();
+		break;
+	case DOWN:
+		if (head->y >= food.y)
+			TurnLeftOrRight();
+		break;
+	}
+}
+
+void SNAKE::TurnLeftOrRight() {
+	if (head->x < food.x)
+		if ((food.x - head->x) * 2 < WINDOW_WIDTH)
+			DIRE = RIGHT;
+		else
+			DIRE = LEFT;
+	else if (head->x > food.x)
+		if ((head->x - food.x) * 2 < WINDOW_WIDTH)
+			DIRE = LEFT;
+		else
+			DIRE = RIGHT;
+}
+
+void SNAKE::TurnUpOrDown() {
+	if (head->y < food.y)
+		if ((food.y - head->y) * 2 < WINDOW_HEIGHT)
+			DIRE = DOWN;
+		else
+			DIRE = UP;
+	else if (head->y > food.y)
+		if ((head->y - food.y) * 2 < WINDOW_HEIGHT)
+			DIRE = UP;
+		else
+			DIRE = DOWN;
+}
+
+void SNAKE::Restart() {
+	for (t = head->next; t != tail; t = t->next) {
+		delete head;
+		head = t;
+	}
+	head->front = NULL;
+	head->x = head->y = 0;
+	tail->x = tail->y = 0;
+	DIRE = RIGHT;
+	valid_num = 2;
+	setbkcolor(RGB(50, 100, 255));
+}

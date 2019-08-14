@@ -1,0 +1,46 @@
+#ifndef PCH_H
+#define PCH_H
+
+// 设置块的旋转枚举类型，一直都为向右旋转。
+enum ROTATION { R0, R1, R2, R3 };
+
+// BOARD 为待覆盖的格板，每一格的 bool 值表示是否被块占据，false 表空闲，true 表被占据。
+struct BOARD{
+	bool ** ppboard = 0;	//格板的指针
+	int row;				//格板的行数
+	int column;				//格板的列数
+};
+
+// Block 为单个待测试的块，每个 bool 值表示其形状，false 表该格无，true 表该格有。
+class Block {
+public:
+	bool flag_reverse_deal = false;			//用于指示块是被顺序还是倒序处理
+	bool flag_cant_rotate = false;			//表示该块在任何位置都不能旋转90度（一旋转就超界），则只可能每次转180度
+	bool flag_90_rotate_invalid = false;	//表示旋转90度实际无效
+	bool flag_180_rotate_invalid = false;	//表示旋转180度实际无效
+	int rotation = R0;						//指示旋转状态
+	bool ** ppblock = 0;					//块的指针
+	int row;								//块的行数
+	int column;								//块的列数
+	int pos_column = 0;						//块在格板上的列坐标
+	int pos_row = 0;						//块在格板上的行坐标
+	int rotate_count = 0;					//记录在之前已放置的块未变动时已试的旋转状态
+
+	Block() {}
+	Block(const int r, const int c);
+	~Block();
+
+	Block & operator=(const Block & b);
+	void SetShape();					//设置块的形状
+	bool MoveToNext();					//移动块到下一个待测试的格子
+	bool Test();						//测试块能否放置在该格子，且若能则标识格板相应位置
+	bool Rotate_90();					//以90度或180度向右旋转块（不一定能转，可能会超界）
+	void Rotate_180();					//向右旋转180（一定能转）
+	bool Rotation();					//总的旋转函数（自行判断旋转90度还是180度，返回true表旋转90度，返回false表旋转180度）
+	void RotationInvalid();				//测试块是否为旋转过后实际等同于没旋转
+};
+
+bool Function(Block & b);				//处理单个块
+bool CheckCanFull();					//检查所有块的组合能否刚好铺满格板
+
+#endif //PCH_H

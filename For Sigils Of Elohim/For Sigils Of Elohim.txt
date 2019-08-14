@@ -1,0 +1,80 @@
+#include "pch.h"
+#include <iostream>
+using namespace std;
+
+BOARD board;
+Block *blocks = 0;		//blocks 指向存放块的内存。
+int blocks_count;		//块的数量
+
+int main() {
+	cout << "Enter board size by row and column and input other character to quit :\n";
+	while (cin >> board.row) {
+		cin >> board.column;
+		while (board.row < 1 || board.column < 1) {
+			cout << "Invalid input of board size! Try again:\n";
+			cin >> board.row >> board.column;
+		}
+		board.ppboard = new bool *[board.row];
+		for (int i = 0; i < board.row; ++i)
+			board.ppboard[i] = new bool[board.column];
+		for (int i = 0; i < board.row; ++i)
+			for (int j = 0; j < board.column; ++j)
+				board.ppboard[i][j] = false;
+		cout << "Enter total count of blocks:\n";
+		cin >> blocks_count;
+		while (blocks_count < 1) {
+			cout << "Invalid input count of block! Try again:\n";
+			cin >> blocks_count;
+		}
+		blocks = new Block[blocks_count];
+		int block_row, block_column;		//临时记录块的行和列。
+		for (int k = 0; k < blocks_count; ++k) {
+			cout << "Enter the " << k + 1 << " block's size by row and column :\n";
+			cin >> block_row >> block_column;
+			while (block_row < 1 || block_column < 1 || block_row > board.row || block_column > board.column) {
+				cout << "Invalid input of block size! Try again:\n";
+				cin >> block_row >> block_column;
+			}
+			blocks[k] = Block(block_row, block_column);
+			blocks[k].SetShape();
+			blocks[k].RotationInvalid();
+		}
+		if (CheckCanFull()) {
+			/******************前期准备结束，核心开始***********************/
+			int process = 0;
+			bool no_solution = false;
+			while (process < blocks_count)
+				if (Function(blocks[process])) {
+					++process;
+					if (process < blocks_count)
+						blocks[process].flag_reverse_deal = false;
+				}
+				else {
+					blocks[process].rotate_count = 0;
+					if (!process--) {
+						no_solution = true;
+						break;
+					}
+					blocks[process].flag_reverse_deal = true;
+				}
+			/************************核心结束******************************/
+			if (no_solution)
+				cout << "The combination of blocks actually have no solution.\n";
+			else {
+				cout << endl << "The solution is :\n"
+					<< "Block\tRotation   Row\tColumn\n";
+				for (int i = 0; i < blocks_count; ++i)
+					cout << i + 1 << '\t' << blocks[i].rotation << "\t   "
+					<< blocks[i].pos_row << '\t' << blocks[i].pos_column << endl << endl;
+			}
+		}
+		else
+			cout << endl << "The all blocks can't perfect full board!" << endl << endl;
+		for (int i = 0; i < board.row; ++i)
+			delete[] board.ppboard[i];
+		delete[] board.ppboard;
+		board.ppboard = 0;
+		cout << "Enter board size by row and column and input other character to quit :\n";
+	}
+	return 0;
+}

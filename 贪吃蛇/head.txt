@@ -1,0 +1,61 @@
+#ifndef HEAD_H
+#define HEAD_H
+
+#include <stdlib.h>
+#include <conio.h>
+#include <graphics.h>
+
+enum ENUM {
+	UP = 72,
+	DOWN = 80,
+	LEFT = 75,
+	RIGHT = 77,
+	SPACE = 32,
+	TAB = 9,
+	ESC = 27,
+	M = 109,
+	N = 110
+};
+
+struct SECTION {				//一节蛇身
+	SECTION *front = NULL;
+	SECTION *next = NULL;
+	int x;
+	int y;
+};
+
+struct FOOD {					//食物
+	int x;
+	int y;
+};
+
+class SNAKE {					//蛇
+private:
+	SECTION *head = NULL;		//蛇头（链表头节点）
+	SECTION *tail = NULL;		//蛇尾（链表尾节点）
+	int valid_num;				//蛇身节数，最多1000节	
+	ENUM DIRE;					//存蛇移动方向及其他控制字枚举量
+	bool flag_auto = false;		//蛇是否自动
+	bool flag_cross = false;	//蛇是否可穿过自身
+
+public:
+	SNAKE();
+	~SNAKE();
+	void AddSection();			//增加一节蛇身
+	void Move();				//蛇移动一单位
+	void Show();				//画蛇、食物
+	void Control();				//控制蛇转向及各类功能
+	void Recycle();				//令蛇可穿墙循环
+	bool HitSelf();				//检测蛇有无撞到自己
+	void Food();				//检测是否被蛇吃到及被吃后重新放置及增长蛇身
+	void Auto();				//蛇自动变向
+	void TurnUpOrDown();		//供Auto调用
+	void TurnLeftOrRight();		//供Auto调用
+	void Restart();
+	bool isAuto() { return flag_auto; }
+	bool isCross() { return flag_cross; }
+};
+
+void GameInit();
+
+#endif 

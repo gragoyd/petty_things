@@ -1,0 +1,212 @@
+#include "pch.h"
+#include <iostream>
+using namespace std;
+
+extern BOARD board;
+extern Block *blocks;
+extern int blocks_count;
+
+Block::Block(const int r, const int c)
+	:row(r),column(c) {
+	ppblock = new bool *[row];
+	for (int i = 0; i < row; ++i)
+		ppblock[i] = new bool[column];
+	for (int i = 0; i < row; ++i)
+		for (int j = 0; j < column; ++j)
+			ppblock[i][j] = false;
+}
+
+Block::~Block() {
+	for (int i = 0; i < row; ++i)
+		delete[] ppblock[i];
+	delete[] ppblock;
+	ppblock = 0;
+}
+
+Block & Block::operator=(const Block & b) {
+	flag_cant_rotate = b.flag_cant_rotate;
+	flag_reverse_deal = b.flag_reverse_deal;
+	flag_180_rotate_invalid = b.flag_180_rotate_invalid;
+	flag_90_rotate_invalid = b.flag_90_rotate_invalid;
+	rotation = b.rotation;
+	row = b.row;
+	column = b.column;
+	if (ppblock) {
+		for (int i = 0; i < row; ++i)
+			delete[] ppblock[i];
+		delete[] ppblock;
+	}
+	ppblock = new bool *[row];
+	for (int i = 0; i < row; ++i)
+		ppblock[i] = new bool [column];
+	for (int i = 0; i < row; ++i)
+		for (int j = 0; j < column; ++j)
+			ppblock[i][j] = b.ppblock[i][j];
+	pos_row = b.pos_row;
+	pos_column = b.pos_column;
+	rotate_count = b.rotate_count;
+	return *this;
+}
+
+void Block::SetShape() {
+	int size = row * column;
+	cout << "Enter block's shape by a series of 0 and non-0 :\n";
+	char *t = new char[size];							//利用 char 型的性质实现一连串输入块的形状
+	for (int i = 0; i < size; ++i)
+		cin >> t[i];
+	while (cin.get() != '\n')							//清理可能的多余输入
+		;
+	int count = 0;
+	for (int i = 0; i < row; ++i)						//将 char 型输入转换成 bool 型
+		for (int j = 0; j < column; ++j)
+			ppblock[i][j] = t[count++] - '0';
+	if (row > board.column || column > board.row)		//判断块是否在板的任意位置都不能旋转 90°
+		flag_cant_rotate = true;
+}
+
+bool Block::MoveToNext() {
+	if (pos_column + column < board.column) {			//若块的右边没到板的右边界
+		++pos_column;
+		return true;
+	}
+	else												//若块已接触板的右边界（不可能超过）		
+		if (pos_row + row < board.row) {				//判断能否往下移
+			++pos_row;
+			pos_column = 0;
+			return true;
+		}
+		else											//若往下也移不动则已经到板的最后一格
+			return false;
+}
+
+bool Block::Test() {
+	for (int i = pos_row; i < pos_row + row; ++i)
+		for (int j = pos_column; j < pos_column + column; ++j)
+			if (board.ppboard[i][j] && ppblock[i - pos_row][j - pos_column])	//判断块的每个小格在板上是否已有其他块放置
+				return false;													//只要有一个格冲突就放置不了
+	for (int i = pos_row; i < pos_row + row; ++i)								//若进行到这表示能放
+		for (int j = pos_column; j < pos_column + column; ++j)
+			if (ppblock[i - pos_row][j - pos_column])							//将块的放置信息在板上标记
+				board.ppboard[i][j] = true;
+	return true;
+}
+
+bool Block::Rotate_90() {
+	if ((pos_column + row > board.column)||(pos_row + column > board.row))		//判断块在该位置能否转 90°
+		return false;
+	if (rotation == R3)															//设置旋转状态
+		rotation = R0;
+	else 
+		++rotation;
+	bool **temp = new bool *[column];
+	for (int i = 0; i < column; ++i)
+		temp[i] = new bool[row];
+	for (int i = 0; i < row; ++i)												//核心旋转变换
+		for (int j = 0; j < column; ++j)
+			temp[j][row - 1 - i] = ppblock[i][j];
+	for (int i = 0; i < row; ++i)
+		delete[] ppblock[i];
+	delete[] ppblock;
+	ppblock = temp;
+	int t = column;																//交换块的行列数的数据
+	column = row;
+	row = t;
+	return true;
+}
+
+void Block::Rotate_180() {
+	if (rotation == R0)															//设置旋转状态
+		rotation = R2;
+	if (rotation == R2)
+		rotation = R0;
+	bool t;
+	for (int i = 0; i < row; ++i)												//核心旋转变换
+		for (int j = 0; j < column; ++j) {
+			t = ppblock[i][j];
+			ppblock[i][j] = ppblock[row - 1 - i][column - 1 - j];
+			ppblock[row - 1 - i][column - 1 - j] = t;
+		}
+}
+
+bool Block::Rotation() {
+	if (!flag_cant_rotate && !flag_90_rotate_invalid && Rotate_90()) {			//在可能旋转 90° 且旋转 90° 实际有效条件下，再尝试旋转 90°
+		++rotate_count;															//并根据旋转函数返回值决定是否增加已旋转状态计数
+		return true;
+	}
+	if (!flag_180_rotate_invalid) {												//在未能旋转 90° 条件下，若旋转 180° 实际有效才进行旋转
+		Rotate_180();
+		rotate_count += 2;														//因旋转 180° 一次即试完所有有效旋转状态，故每次计数 +2
+	}
+	else
+		rotate_count = 3;														//若既未能转 90°，转 180°也没有，就直接将旋转状态计数置为 3，不再尝试旋转
+	return false;
+}
+
+bool Function(Block & b) {
+	if (b.flag_reverse_deal) {												//若为下个块放置失败而返回重新处理此块
+		for (int i = b.pos_row; i < b.pos_row + b.row; ++i)					//则先清除格板相应处的放置标识
+			for (int j = b.pos_column; j < b.pos_column + b.column; ++j)
+				if (b.ppblock[i - b.pos_row][j - b.pos_column])
+					board.ppboard[i][j] = false;
+		if (!b.MoveToNext()) {												//还需先将此块挪动一格
+			b.pos_column = b.pos_row = 0;									//若移动不成功，则尝试旋转后再移动
+			if (b.rotate_count < 3) {										//若还有未尝试的旋转状态
+				b.Rotation();												//则在仍有未尝试旋转状态的情况下旋转并移动
+				b.MoveToNext();
+			}
+			else															//若所有旋转状态都已试完，则该块也处理失败
+				return false;
+		} 
+	}
+	do {																	//先遍历测试一遍
+		if (b.Test())
+			return true;
+	} while (b.MoveToNext());
+	while (b.rotate_count < 3) {									 		//若未能放置就在可能剩余未尝试的旋转状态下都遍历测试一遍
+		b.pos_column = b.pos_row = 0;
+		b.Rotation();
+		do {
+			if (b.Test())
+				return true;
+		} while (b.MoveToNext());
+	}
+	b.pos_column = b.pos_row = 0;											//若能到这则表明已经尽力了。。。这块确实没办法放
+	return false;
+}
+
+bool CheckCanFull() {									//通过累加所有块的有形状的格数是否与板的格数相等来判断
+	int shapeCount = 0;
+	for (int k = 0; k < blocks_count; ++k)
+		for (int i = 0; i < blocks[k].row; ++i)
+			for (int j = 0; j < blocks[k].column; ++j)
+				if (blocks[k].ppblock[i][j])
+					++shapeCount;
+	if (board.column*board.row == shapeCount)
+		return true;
+	else
+		return false;
+}
+
+void Block::RotationInvalid() {
+	int count = 0;
+	if (row == column) {													//遍历检查该块旋转 90° 是否实际有效
+		for (int i = 0; i < row; ++i)
+			for (int j = 0; j < row; ++j)
+				if (ppblock[i][j] == ppblock[j][i]
+					&& ppblock[i][j] == ppblock[i][column - 1 - j])
+					++count;
+		if (row*row == count) {												//若为旋转 90° 无效
+			flag_90_rotate_invalid = true;
+			flag_180_rotate_invalid = true;									//则旋转 180° 必定无效
+			return;															//结束函数，不必再判断旋转 180° 是否有效
+		}
+	}
+	count = 0;
+	for (int i = 0; i < row; ++i)											//遍历检查该块旋转 180° 是否实际有效
+		for (int j = 0; j < column; ++j) {
+			if (ppblock[i][j] == ppblock[row - 1 - i][column - 1 - j])
+				++count;
+		}
+	if (row*column == count)
+		flag_180_rotate_invalid = true;
+}

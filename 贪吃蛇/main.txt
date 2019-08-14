@@ -1,0 +1,25 @@
+#include "head.h"
+SNAKE snake;
+extern long int sleep_time;
+bool flag_restart = false;
+
+int main()
+{
+	GameInit();
+	while (1) {	
+		if (_kbhit())
+			snake.Control();
+		if (snake.isAuto())
+			snake.Auto();
+		Sleep(sleep_time);
+		snake.Move();
+		snake.Recycle();
+		snake.Food();
+		snake.Show();
+		if(!snake.isCross())
+			flag_restart = snake.HitSelf();
+		if (flag_restart)
+			snake.Restart();
+	}
+	return 0;
+}
